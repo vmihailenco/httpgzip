@@ -28,9 +28,9 @@ const (
 	DefaultMinSize = 200
 )
 
-// AcceptsGzip returns true if the given HTTP request indicates that it will
+// acceptsGzip returns true if the given HTTP request indicates that it will
 // accept a gzipped response.
-func AcceptsGzip(r *http.Request) bool {
+func acceptsGzip(r *http.Request) bool {
 	acceptedEncodings, _ := parseEncodings(r.Header.Get(acceptEncoding))
 	return acceptedEncodings["gzip"] > 0.0
 }

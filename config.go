@@ -17,7 +17,7 @@ type Config struct {
 	pool sync.Pool
 }
 
-func New(opts ...option) (*Config, error) {
+func New(opts ...ConfigOption) (*Config, error) {
 	c := &Config{
 		level:   gzip.DefaultCompression,
 		minSize: DefaultMinSize,
@@ -41,11 +41,15 @@ func New(opts ...option) (*Config, error) {
 	return c, nil
 }
 
+func (c *Config) AcceptsGzip(r *http.Request) bool {
+	return acceptsGzip(r)
+}
+
 func (c *Config) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add(vary, acceptEncoding)
 
-		if !AcceptsGzip(r) {
+		if !c.AcceptsGzip(r) {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -81,15 +85,15 @@ func (c *Config) validate() error {
 	return nil
 }
 
-type option func(c *Config)
+type ConfigOption func(c *Config)
 
-func MinSize(size int) option {
+func MinSize(size int) ConfigOption {
 	return func(c *Config) {
 		c.minSize = size
 	}
 }
 
-func CompressionLevel(level int) option {
+func CompressionLevel(level int) ConfigOption {
 	return func(c *Config) {
 		c.level = level
 	}
@@ -113,9 +117,9 @@ func CompressionLevel(level int) option {
 //
 // By default, responses are gzipped regardless of
 // Content-Type.
-func ContentTypes(types []string) option {
+func ContentTypes(types []string) ConfigOption {
 	return func(c *Config) {
-		c.contentTypes = []parsedContentType{}
+		c.contentTypes = nil
 		for _, v := range types {
 			mediaType, params, err := mime.ParseMediaType(v)
 			if err == nil {
