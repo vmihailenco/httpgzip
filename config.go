@@ -17,7 +17,7 @@ type Config struct {
 	pool sync.Pool
 }
 
-func New(opts ...ConfigOption) (*Config, error) {
+func New(opts ...Option) (*Config, error) {
 	c := &Config{
 		level:   gzip.DefaultCompression,
 		minSize: DefaultMinSize,
@@ -85,15 +85,15 @@ func (c *Config) validate() error {
 	return nil
 }
 
-type ConfigOption func(c *Config)
+type Option func(c *Config)
 
-func MinSize(size int) ConfigOption {
+func MinSize(size int) Option {
 	return func(c *Config) {
 		c.minSize = size
 	}
 }
 
-func CompressionLevel(level int) ConfigOption {
+func CompressionLevel(level int) Option {
 	return func(c *Config) {
 		c.level = level
 	}
@@ -117,7 +117,7 @@ func CompressionLevel(level int) ConfigOption {
 //
 // By default, responses are gzipped regardless of
 // Content-Type.
-func ContentTypes(types []string) ConfigOption {
+func ContentTypes(types []string) Option {
 	return func(c *Config) {
 		c.contentTypes = nil
 		for _, v := range types {

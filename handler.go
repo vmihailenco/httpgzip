@@ -32,7 +32,7 @@ func NewGzipLevelAndMinSize(level, minSize int) (func(http.Handler) http.Handler
 	return GzipHandlerWithOpts(CompressionLevel(level), MinSize(minSize))
 }
 
-func GzipHandlerWithOpts(opts ...ConfigOption) (func(http.Handler) http.Handler, error) {
+func GzipHandlerWithOpts(opts ...Option) (func(http.Handler) http.Handler, error) {
 	c, err := New(opts...)
 	if err != nil {
 		return nil, err
