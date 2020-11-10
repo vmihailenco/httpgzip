@@ -1,4 +1,4 @@
-package gziphandler
+package httpgzip
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/klauspost/compress/gzip"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -38,7 +38,7 @@ func TestParseEncodings(t *testing.T) {
 
 	for eg, exp := range examples {
 		act, _ := parseEncodings(eg)
-		assert.Equal(t, exp, act)
+		require.Equal(t, exp, act)
 	}
 }
 
@@ -53,10 +53,10 @@ func TestGzipHandler(t *testing.T) {
 	handler.ServeHTTP(resp1, req1)
 	res1 := resp1.Result()
 
-	assert.Equal(t, 200, res1.StatusCode)
-	assert.Equal(t, "", res1.Header.Get("Content-Encoding"))
-	assert.Equal(t, "Accept-Encoding", res1.Header.Get("Vary"))
-	assert.Equal(t, testBody, resp1.Body.String())
+	require.Equal(t, 200, res1.StatusCode)
+	require.Equal(t, "", res1.Header.Get("Content-Encoding"))
+	require.Equal(t, "Accept-Encoding", res1.Header.Get("Vary"))
+	require.Equal(t, testBody, resp1.Body.String())
 
 	// but requests with accept-encoding:gzip are compressed if possible
 
@@ -66,10 +66,10 @@ func TestGzipHandler(t *testing.T) {
 	handler.ServeHTTP(resp2, req2)
 	res2 := resp2.Result()
 
-	assert.Equal(t, 200, res2.StatusCode)
-	assert.Equal(t, "gzip", res2.Header.Get("Content-Encoding"))
-	assert.Equal(t, "Accept-Encoding", res2.Header.Get("Vary"))
-	assert.Equal(t, gzipStrLevel(testBody, gzip.DefaultCompression), resp2.Body.Bytes())
+	require.Equal(t, 200, res2.StatusCode)
+	require.Equal(t, "gzip", res2.Header.Get("Content-Encoding"))
+	require.Equal(t, "Accept-Encoding", res2.Header.Get("Vary"))
+	require.Equal(t, gzipStrLevel(testBody, gzip.DefaultCompression), resp2.Body.Bytes())
 
 	// content-type header is correctly set based on uncompressed body
 
@@ -78,7 +78,7 @@ func TestGzipHandler(t *testing.T) {
 	res3 := httptest.NewRecorder()
 	handler.ServeHTTP(res3, req3)
 
-	assert.Equal(t, http.DetectContentType([]byte(testBody)), res3.Header().Get("Content-Type"))
+	require.Equal(t, http.DetectContentType([]byte(testBody)), res3.Header().Get("Content-Type"))
 }
 
 func TestGzipHandlerSmallBodyNoCompression(t *testing.T) {
@@ -92,11 +92,10 @@ func TestGzipHandlerSmallBodyNoCompression(t *testing.T) {
 
 	// with less than 1400 bytes the response should not be gzipped
 
-	assert.Equal(t, 200, res.StatusCode)
-	assert.Equal(t, "", res.Header.Get("Content-Encoding"))
-	assert.Equal(t, "Accept-Encoding", res.Header.Get("Vary"))
-	assert.Equal(t, smallTestBody, resp.Body.String())
-
+	require.Equal(t, 200, res.StatusCode)
+	require.Equal(t, "", res.Header.Get("Content-Encoding"))
+	require.Equal(t, "Accept-Encoding", res.Header.Get("Vary"))
+	require.Equal(t, smallTestBody, resp.Body.String())
 }
 
 func TestGzipHandlerAlreadyCompressed(t *testing.T) {
@@ -107,7 +106,7 @@ func TestGzipHandlerAlreadyCompressed(t *testing.T) {
 	res := httptest.NewRecorder()
 	handler.ServeHTTP(res, req)
 
-	assert.Equal(t, testBody, res.Body.String())
+	require.Equal(t, testBody, res.Body.String())
 }
 
 func TestNewGzipLevelHandler(t *testing.T) {
@@ -118,9 +117,7 @@ func TestNewGzipLevelHandler(t *testing.T) {
 
 	for lvl := gzip.BestSpeed; lvl <= gzip.BestCompression; lvl++ {
 		wrapper, err := NewGzipLevelHandler(lvl)
-		if !assert.Nil(t, err, "NewGzipLevleHandler returned error for level:", lvl) {
-			continue
-		}
+		require.Nil(t, err, "NewGzipLevleHandler returned error for level:", lvl)
 
 		req, _ := http.NewRequest("GET", "/whatever", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -128,20 +125,20 @@ func TestNewGzipLevelHandler(t *testing.T) {
 		wrapper(handler).ServeHTTP(resp, req)
 		res := resp.Result()
 
-		assert.Equal(t, 200, res.StatusCode)
-		assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
-		assert.Equal(t, "Accept-Encoding", res.Header.Get("Vary"))
-		assert.Equal(t, gzipStrLevel(testBody, lvl), resp.Body.Bytes())
+		require.Equal(t, 200, res.StatusCode)
+		require.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
+		require.Equal(t, "Accept-Encoding", res.Header.Get("Vary"))
+		require.Equal(t, gzipStrLevel(testBody, lvl), resp.Body.Bytes())
 	}
 }
 
 func TestNewGzipLevelHandlerReturnsErrorForInvalidLevels(t *testing.T) {
 	var err error
 	_, err = NewGzipLevelHandler(-42)
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 
 	_, err = NewGzipLevelHandler(42)
-	assert.NotNil(t, err)
+	require.NotNil(t, err)
 }
 
 func TestMustNewGzipLevelHandlerWillPanic(t *testing.T) {
@@ -197,13 +194,13 @@ func TestGzipHandlerNoBody(t *testing.T) {
 		}
 
 		header := rec.Header()
-		assert.Equal(t, test.contentEncoding, header.Get("Content-Encoding"), fmt.Sprintf("for test iteration %d", num))
-		assert.Equal(t, "Accept-Encoding", header.Get("Vary"), fmt.Sprintf("for test iteration %d", num))
+		require.Equal(t, test.contentEncoding, header.Get("Content-Encoding"), fmt.Sprintf("for test iteration %d", num))
+		require.Equal(t, "Accept-Encoding", header.Get("Vary"), fmt.Sprintf("for test iteration %d", num))
 		if test.emptyBody {
-			assert.Empty(t, body, fmt.Sprintf("for test iteration %d", num))
+			require.Empty(t, body, fmt.Sprintf("for test iteration %d", num))
 		} else {
-			assert.NotEmpty(t, body, fmt.Sprintf("for test iteration %d", num))
-			assert.NotEqual(t, test.body, body, fmt.Sprintf("for test iteration %d", num))
+			require.NotEmpty(t, body, fmt.Sprintf("for test iteration %d", num))
+			require.NotEqual(t, test.body, body, fmt.Sprintf("for test iteration %d", num))
 		}
 	}
 }
@@ -269,19 +266,19 @@ func TestGzipHandlerContentLength(t *testing.T) {
 			t.Fatalf("Unexpected error parsing Content-Length in test iteration %d: %v", num, err)
 		}
 		if test.emptyBody {
-			assert.Empty(t, body, fmt.Sprintf("for test iteration %d", num))
-			assert.Equal(t, 0, l, fmt.Sprintf("for test iteration %d", num))
+			require.Empty(t, body, fmt.Sprintf("for test iteration %d", num))
+			require.Equal(t, 0, l, fmt.Sprintf("for test iteration %d", num))
 		} else {
-			assert.Len(t, body, l, fmt.Sprintf("for test iteration %d", num))
+			require.Len(t, body, l, fmt.Sprintf("for test iteration %d", num))
 		}
-		assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"), fmt.Sprintf("for test iteration %d", num))
-		assert.NotEqual(t, test.bodyLen, l, fmt.Sprintf("for test iteration %d", num))
+		require.Equal(t, "gzip", res.Header.Get("Content-Encoding"), fmt.Sprintf("for test iteration %d", num))
+		require.NotEqual(t, test.bodyLen, l, fmt.Sprintf("for test iteration %d", num))
 	}
 }
 
 func TestGzipHandlerMinSizeMustBePositive(t *testing.T) {
 	_, err := NewGzipLevelAndMinSize(gzip.DefaultCompression, -1)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGzipHandlerMinSize(t *testing.T) {
@@ -295,8 +292,8 @@ func TestGzipHandlerMinSize(t *testing.T) {
 			// mechanism, if used, is working properly.
 			for i := 0; i < responseLength; i++ {
 				n, err := w.Write(b)
-				assert.Equal(t, 1, n)
-				assert.Nil(t, err)
+				require.Equal(t, 1, n)
+				require.Nil(t, err)
 			}
 		},
 	))
@@ -322,11 +319,10 @@ func TestGzipHandlerMinSize(t *testing.T) {
 }
 
 func TestGzipDoubleClose(t *testing.T) {
-	// reset the pool for the default compression so we can make sure duplicates
-	// aren't added back by double close
-	addLevelPool(gzip.DefaultCompression)
+	c, err := New()
+	require.Nil(t, err)
 
-	handler := GzipHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := c.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// call close here and it'll get called again interally by
 		// NewGzipLevelHandler's handler defer
 		w.Write([]byte("test"))
@@ -340,10 +336,10 @@ func TestGzipDoubleClose(t *testing.T) {
 
 	// the second close shouldn't have added the same writer
 	// so we pull out 2 writers from the pool and make sure they're different
-	w1 := gzipWriterPools[poolIndex(gzip.DefaultCompression)].Get()
-	w2 := gzipWriterPools[poolIndex(gzip.DefaultCompression)].Get()
-	// assert.NotEqual looks at the value and not the address, so we use regular ==
-	assert.False(t, w1 == w2)
+	w1 := c.pool.Get()
+	w2 := c.pool.Get()
+	// require.NotEqual looks at the value and not the address, so we use regular ==
+	require.False(t, w1 == w2)
 }
 
 type panicOnSecondWriteHeaderWriter struct {
@@ -391,11 +387,11 @@ func TestGzipHandlerDoubleWriteHeader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error reading response body: %v", err)
 	}
-	assert.Empty(t, body)
+	require.Empty(t, body)
 	header := rec.Header()
-	assert.Equal(t, "gzip", header.Get("Content-Encoding"))
-	assert.Equal(t, "Accept-Encoding", header.Get("Vary"))
-	assert.Equal(t, 304, rec.Code)
+	require.Equal(t, "gzip", header.Get("Content-Encoding"))
+	require.Equal(t, "Accept-Encoding", header.Get("Vary"))
+	require.Equal(t, 304, rec.Code)
 }
 
 func TestStatusCodes(t *testing.T) {
@@ -424,9 +420,9 @@ func TestFlushBeforeWrite(t *testing.T) {
 	handler.ServeHTTP(w, r)
 
 	res := w.Result()
-	assert.Equal(t, http.StatusNotFound, res.StatusCode)
-	assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
-	assert.NotEqual(t, b, w.Body.Bytes())
+	require.Equal(t, http.StatusNotFound, res.StatusCode)
+	require.Equal(t, "gzip", res.Header.Get("Content-Encoding"))
+	require.NotEqual(t, b, w.Body.Bytes())
 }
 
 func TestImplementCloseNotifier(t *testing.T) {
@@ -434,7 +430,7 @@ func TestImplementCloseNotifier(t *testing.T) {
 	request.Header.Set(acceptEncoding, "gzip")
 	GzipHandler(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		_, ok := rw.(http.CloseNotifier)
-		assert.True(t, ok, "response writer must implement http.CloseNotifier")
+		require.True(t, ok, "response writer must implement http.CloseNotifier")
 	})).ServeHTTP(&mockRWCloseNotify{}, request)
 }
 
@@ -443,9 +439,9 @@ func TestImplementFlusherAndCloseNotifier(t *testing.T) {
 	request.Header.Set(acceptEncoding, "gzip")
 	GzipHandler(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		_, okCloseNotifier := rw.(http.CloseNotifier)
-		assert.True(t, okCloseNotifier, "response writer must implement http.CloseNotifier")
+		require.True(t, okCloseNotifier, "response writer must implement http.CloseNotifier")
 		_, okFlusher := rw.(http.Flusher)
-		assert.True(t, okFlusher, "response writer must implement http.Flusher")
+		require.True(t, okFlusher, "response writer must implement http.Flusher")
 	})).ServeHTTP(&mockRWCloseNotify{}, request)
 }
 
@@ -454,7 +450,7 @@ func TestNotImplementCloseNotifier(t *testing.T) {
 	request.Header.Set(acceptEncoding, "gzip")
 	GzipHandler(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		_, ok := rw.(http.CloseNotifier)
-		assert.False(t, ok, "response writer must not implement http.CloseNotifier")
+		require.False(t, ok, "response writer must not implement http.CloseNotifier")
 	})).ServeHTTP(httptest.NewRecorder(), request)
 }
 
@@ -587,9 +583,7 @@ func TestContentTypes(t *testing.T) {
 		})
 
 		wrapper, err := GzipHandlerWithOpts(ContentTypes(tt.acceptedContentTypes))
-		if !assert.Nil(t, err, "NewGzipHandlerWithOpts returned error", tt.name) {
-			continue
-		}
+		require.Nil(t, err, "NewGzipHandlerWithOpts returned error", tt.name)
 
 		req, _ := http.NewRequest("GET", "/whatever", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
@@ -597,11 +591,11 @@ func TestContentTypes(t *testing.T) {
 		wrapper(handler).ServeHTTP(resp, req)
 		res := resp.Result()
 
-		assert.Equal(t, 200, res.StatusCode)
+		require.Equal(t, 200, res.StatusCode)
 		if tt.expectedGzip {
-			assert.Equal(t, "gzip", res.Header.Get("Content-Encoding"), tt.name)
+			require.Equal(t, "gzip", res.Header.Get("Content-Encoding"), tt.name)
 		} else {
-			assert.NotEqual(t, "gzip", res.Header.Get("Content-Encoding"), tt.name)
+			require.NotEqual(t, "gzip", res.Header.Get("Content-Encoding"), tt.name)
 		}
 	}
 }
